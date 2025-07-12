@@ -1,7 +1,7 @@
 {
   "name": "Telegram SMM Bot",
   "description": "A multi-user SMM bot connected to BlueSMMPanel API",
-  "repository": "https://github.com/asifxqueen/Telegram-SMM-Bot",
+  "repository": "https://github.com/ASIFXQUEEN903/SSM-XQUEENPANEL",
   "logo": "https://i.ibb.co/d4qWfL2/smm.png",
   "keywords": ["telegram", "smm", "pyrogram", "heroku"],
   "env": {
@@ -14,7 +14,15 @@
       "required": true
     },
     "ADMIN_ID": {
-      "description": "Your Telegram user ID",
+      "description": "Your Telegram user ID (as integer)",
+      "required": true
+    },
+    "API_ID": {
+      "description": "Your Telegram API ID from https://my.telegram.org",
+      "required": true
+    },
+    "API_HASH": {
+      "description": "Your Telegram API HASH from https://my.telegram.org",
       "required": true
     }
   },
