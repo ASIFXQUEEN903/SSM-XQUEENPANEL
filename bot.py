@@ -21,14 +21,13 @@ async def services(_, m: Message):
             services = res.json()
         except:
             return await m.reply("❌ Failed to fetch services.")
-        text = "🛍️ *Available Services:*
-
-"
+        
+        text = "🛍️ *Available Services:*\n\n"
         for srv in services[:10]:  # Limit for readability
-            text += f"🔹 *{srv['service']}* - {srv['name']}
-💰 {srv['rate']} | {srv['min']}–{srv['max']}
-
-"
+            text += (
+                f"🔹 *{srv['service']}* - {srv['name']}\n"
+                f"💰 {srv['rate']} | {srv['min']}–{srv['max']}\n\n"
+            )
         await m.reply_text(text)
 
 @app.on_message(filters.command("balance"))
@@ -59,8 +58,9 @@ async def order(_, m: Message):
             return await m.reply("❌ Error placing order.")
         if "order" in result:
             user_data[uid]["orders"].append(result["order"])
-            return await m.reply_text(f"✅ Order placed successfully!
-🆔 Order ID: {result['order']}")
+            return await m.reply_text(
+                f"✅ Order placed successfully!\n🆔 Order ID: {result['order']}"
+            )
         else:
             return await m.reply_text(f"❌ Error: {result.get('error', 'Unknown error')}")
 
@@ -76,11 +76,14 @@ async def status(_, m: Message):
             data = res.json()
         except:
             return await m.reply("❌ Failed to fetch order status.")
-        msg = f"📦 Order Status:
-Status: {data['status']}
-Start: {data['start_count']}
-Remains: {data['remains']}
-Charge: ${data['charge']}"
+        
+        msg = (
+            f"📦 *Order Status:*\n"
+            f"Status: {data['status']}\n"
+            f"Start: {data['start_count']}\n"
+            f"Remains: {data['remains']}\n"
+            f"Charge: ${data['charge']}"
+        )
         await m.reply_text(msg)
 
 app.run()
