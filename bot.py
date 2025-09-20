@@ -14,7 +14,7 @@ MONGO_URL = os.getenv("MONGO_URL", "MONGO_URL_HERE")
 TEMPORA_API_KEY = os.getenv("TEMPORA_API_KEY", "TEMPORA_API_KEY_HERE")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
-TEMPORA_BASE = "https://api.undefined/stubs/handler_api.php"
+TEMPORA_BASE = "https://api.temporasms.com/stubs/handler_api.php"
 
 # Helper function to call Tempora API
 def call_tempora(params: dict):
