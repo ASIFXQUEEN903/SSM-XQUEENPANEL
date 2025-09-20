@@ -10,3 +10,8 @@ Starter Telegram bot integrating with TemporaSMS API.
 - /start → menu
 - /buy <service> <country> → buy number (API)
 - /addbalance <user_id> <amount> → admin only
+
+
+
+
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/ASIFXQUEEN903/SSM-XQUEENPANEL)
