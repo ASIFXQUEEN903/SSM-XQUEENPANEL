@@ -10,5 +10,6 @@
     "MONGO_URL": {"description": "MongoDB connection string", "required": true},
     "ADMIN_ID": {"description": "Telegram numeric user id of admin", "required": true}
   },
-  "formation": {"worker": {"quantity": 1, "size": "free"}}
-}
+  "formation": {
+    "worker": {"quantity": 1}
+  }
