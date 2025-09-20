@@ -16,5 +16,35 @@ def call_tempora_api(action, extra_params=None):
         r.raise_for_status()
         return r.text
     except Exception as e:
-        logger.exception("Tempora API request failed")
-        return f"ERROR: {str(e)}"
+        logger.exception(f"Tempora API request failed: {action}")
+        return None
+
+def get_operators():
+    resp = call_tempora_api("getOperators")
+    if resp:
+        import json
+        try:
+            return json.loads(resp)
+        except Exception:
+            return {}
+    return {}
+
+def get_prices(country, operator):
+    resp = call_tempora_api("getPrices", {"country": country, "operator": operator})
+    if resp:
+        import json
+        try:
+            return json.loads(resp)
+        except Exception:
+            return {}
+    return {}
+
+def get_countries():
+    resp = call_tempora_api("getCountries", {"operator": 1})
+    if resp:
+        import json
+        try:
+            return json.loads(resp)
+        except Exception:
+            return {}
+    return {}
