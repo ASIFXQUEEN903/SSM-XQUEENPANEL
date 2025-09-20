@@ -1,34 +1,14 @@
 {
-  "name": "Telegram SMM Bot",
-  "description": "A multi-user SMM bot connected to BlueSMMPanel API",
-  "repository": "https://github.com/ASIFXQUEEN903/SSM-XQUEENPANEL",
-  "logo": "https://i.ibb.co/d4qWfL2/smm.png",
-  "keywords": ["telegram", "smm", "pyrogram", "heroku"],
+  "name": "tempora-telegram-bot-starter",
+  "description": "Starter bot integrating TemporaSMS API (Tempora)",
+  "repository": "https://github.com/yourusername/tempora-telegram-bot-starter",
+  "logo": "https://www.example.com/logo.png",
+  "keywords": ["telegram","bot","tempora","sms","heroku"],
   "env": {
-    "API_KEY": {
-      "description": "Your BlueSMMPanel API Key",
-      "required": true
-    },
-    "BOT_TOKEN": {
-      "description": "Your Telegram BotFather token",
-      "required": true
-    },
-    "ADMIN_ID": {
-      "description": "Your Telegram user ID (as integer)",
-      "required": true
-    },
-    "API_ID": {
-      "description": "Your Telegram API ID from https://my.telegram.org",
-      "required": true
-    },
-    "API_HASH": {
-      "description": "Your Telegram API HASH from https://my.telegram.org",
-      "required": true
-    }
+    "BOT_TOKEN": {"description": "Telegram Bot Token from BotFather", "required": true},
+    "TEMPORA_API_KEY": {"description": "TemporaSMS API key", "required": true},
+    "MONGO_URL": {"description": "MongoDB connection string", "required": true},
+    "ADMIN_ID": {"description": "Telegram numeric user id of admin", "required": true}
   },
-  "buildpacks": [
-    {
-      "url": "heroku/python"
-    }
-  ]
+  "formation": {"worker": {"quantity": 1, "size": "free"}}
 }
