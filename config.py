@@ -1,9 +1,17 @@
-# Rename this file to config.py and fill in your actual credentials
+import os, requests, logging
+logger = logging.getLogger(__name__)
 
-API_KEY = "https://bluesmmpanel.com/api/v2"  # Your SMM panel API URL
-BOT_TOKEN = "7632020277:AAH5JZB4LkowOyA0r0HiBhcOPjknT-xwDaE"            # From @BotFather
-ADMIN_ID = 6630587841                         # Your Telegram user ID (as integer)
+TEMPORA_API_KEY = os.getenv("TEMPORA_API_KEY", "TEMPORA_API_KEY_HERE")
+TEMPORA_BASE = "https://api.undefined/stubs/handler_api.php"
 
-# Optional: If you use Pyrogram Client directly instead of only Bot
-API_ID = 28260312                             # Get from https://my.telegram.org
-API_HASH = "48d32cf9296b1607ba31a69bad62da51"             # Also from my.telegram.org
+def call_tempora_api(action, extra_params=None):
+    params = {"action": action, "api_key": TEMPORA_API_KEY}
+    if extra_params:
+        params.update(extra_params)
+    try:
+        r = requests.get(TEMPORA_BASE, params=params, timeout=15)
+        r.raise_for_status()
+        return r.text
+    except Exception as e:
+        logger.exception("Tempora API request failed")
+        return None
