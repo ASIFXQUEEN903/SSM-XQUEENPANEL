@@ -5,11 +5,29 @@
   "logo": "https://www.example.com/logo.png",
   "keywords": ["telegram","bot","tempora","sms","heroku"],
   "env": {
-    "BOT_TOKEN": {"description": "Telegram Bot Token from BotFather", "required": true},
-    "TEMPORA_API_KEY": {"description": "TemporaSMS API key", "required": true},
-    "MONGO_URL": {"description": "MongoDB connection string", "required": true},
-    "ADMIN_ID": {"description": "Telegram numeric user id of admin", "required": true}
+    "BOT_TOKEN": {
+      "description": "Telegram Bot Token from BotFather",
+      "required": true
+    },
+    "TEMPORA_API_KEY": {
+      "description": "TemporaSMS API key",
+      "required": true
+    },
+    "MONGO_URL": {
+      "description": "MongoDB connection string",
+      "required": true
+    },
+    "ADMIN_ID": {
+      "description": "Telegram numeric user id of admin",
+      "required": true
+    }
   },
   "formation": {
-    "worker": {"quantity": 1}
+    "worker": {
+      "quantity": 1
+    }
+  },
+  "scripts": {
+    "postdeploy": "echo 'Deployment complete!'"
   }
+}
