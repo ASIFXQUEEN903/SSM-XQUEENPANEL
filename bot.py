@@ -1,99 +1,117 @@
-import asyncio
-from pyrogram import Client, filters
-from pyrogram.types import Message
-import httpx
-from config import API_KEY, BOT_TOKEN, ADMIN_ID, API_ID, API_HASH
+import os
+import logging
+import requests
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, CallbackContext, CallbackQueryHandler, MessageHandler, Filters
 
-app = Client(
-    "SMMBot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN,
-)
+# Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-user_data = {}
+# Config from environment
+BOT_TOKEN = os.getenv("BOT_TOKEN", "BOT_TOKEN_HERE")
+MONGO_URL = os.getenv("MONGO_URL", "MONGO_URL_HERE")
+TEMPORA_API_KEY = os.getenv("TEMPORA_API_KEY", "TEMPORA_API_KEY_HERE")
+ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
-@app.on_message(filters.command("start"))
-async def start(_, m: Message):
-    user_data[m.from_user.id] = {"balance": 0, "orders": []}
-    await m.reply_text("👋 Welcome to *XQUEEN SMM Bot!*\nUse /services to see available SMM services.")
+TEMPORA_BASE = "https://api.undefined/stubs/handler_api.php"
 
-@app.on_message(filters.command("services"))
-async def services(_, m: Message):
-    async with httpx.AsyncClient() as client:
-        try:
-            res = await client.post(API_KEY, data={"key": API_KEY, "action": "services"})
-            services = res.json()
-            if not isinstance(services, list):
-                raise ValueError("Invalid API response format.")
-        except Exception as e:
-            return await m.reply_text(f"❌ Failed to fetch services.\n\n`{str(e)}`")
+# Helper function to call Tempora API
+def call_tempora(params: dict):
+    params = dict(params)
+    params.setdefault("api_key", TEMPORA_API_KEY)
+    try:
+        r = requests.get(TEMPORA_BASE, params=params, timeout=15)
+        r.raise_for_status()
+        return r.text
+    except Exception as e:
+        logger.exception("Tempora API error")
+        return None
 
-        text = "🛍️ *Available Services:*\n\n"
-        for srv in services[:10]:  # Limit to 10 for readability
-            if isinstance(srv, dict):
-                text += (
-                    f"🔹 *{srv.get('service')}* - {srv.get('name')}\n"
-                    f"💰 Rate: {srv.get('rate')} | Min: {srv.get('min')} | Max: {srv.get('max')}\n\n"
-                )
-        await m.reply_text(text or "❌ No services found.")
+# /start command
+def start(update: Update, context: CallbackContext):
+    user = update.effective_user
+    text = f"Hello {user.first_name}!\nWelcome to TemporaSMS Bot\nUse the menu below."
+    keyboard = [
+        [InlineKeyboardButton("Check Balance", callback_data="check_balance")],
+        [InlineKeyboardButton("Buy Number", callback_data="buy_number")],
+        [InlineKeyboardButton("Request Recharge", callback_data="request_recharge")]
+    ]
+    update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-@app.on_message(filters.command("balance"))
-async def balance(_, m: Message):
-    uid = m.from_user.id
-    bal = user_data.get(uid, {}).get("balance", 0)
-    await m.reply_text(f"💰 Your wallet balance: ₹{bal}")
+# Button clicks
+def button_handler(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+    data = query.data
 
-@app.on_message(filters.command("order"))
-async def order(_, m: Message):
-    parts = m.text.split()
-    if len(parts) < 4:
-        return await m.reply_text("⚠️ Usage: `/order service_id link quantity`", quote=True)
-
-    service, link, qty = parts[1], parts[2], parts[3]
-    uid = m.from_user.id
-
-    async with httpx.AsyncClient() as client:
-        try:
-            res = await client.post(API_KEY, data={
-                "key": API_KEY,
-                "action": "add",
-                "service": service,
-                "link": link,
-                "quantity": qty,
-            })
-            result = res.json()
-        except Exception as e:
-            return await m.reply_text(f"❌ Error placing order.\n\n`{str(e)}`")
-
-        if "order" in result:
-            user_data[uid]["orders"].append(result["order"])
-            return await m.reply_text(f"✅ Order placed successfully!\n🆔 Order ID: `{result['order']}`")
+    if data == "check_balance":
+        resp = call_tempora({"action":"getBalance"})
+        if resp:
+            query.edit_message_text(f"Tempora Balance:\n`{resp}`", parse_mode="Markdown")
         else:
-            return await m.reply_text(f"❌ Error: `{result.get('error', 'Unknown error')}`")
+            query.edit_message_text("Error fetching balance. See logs.")
 
-@app.on_message(filters.command("status"))
-async def status(_, m: Message):
-    parts = m.text.split()
-    if len(parts) != 2:
-        return await m.reply_text("⚠️ Usage: `/status order_id`", quote=True)
+    elif data == "request_recharge":
+        query.edit_message_text("Send the amount you want to request (e.g. 100).")
 
-    oid = parts[1]
-    async with httpx.AsyncClient() as client:
-        try:
-            res = await client.post(API_KEY, data={"key": API_KEY, "action": "status", "order": oid})
-            data = res.json()
-        except Exception as e:
-            return await m.reply_text(f"❌ Failed to fetch status.\n\n`{str(e)}`")
+    elif data == "buy_number":
+        query.edit_message_text("Buy Number flow not implemented yet. Use /buy <service> <country>")
 
-        msg = (
-            f"📦 *Order Status:*\n"
-            f"🆔 Order ID: `{oid}`\n"
-            f"📈 Status: `{data.get('status')}`\n"
-            f"📊 Start Count: `{data.get('start_count')}`\n"
-            f"📉 Remains: `{data.get('remains')}`\n"
-            f"💸 Charge: `${data.get('charge')}`"
-        )
-        await m.reply_text(msg)
+# /buy command
+def buy_handler(update: Update, context: CallbackContext):
+    parts = context.args
+    if len(parts) < 2:
+        update.message.reply_text("Usage: /buy <service> <country>")
+        return
+    service = parts[0]
+    country = parts[1]
+    resp = call_tempora({"action":"getNumber", "service":service, "country":country, "operator":1})
+    if resp:
+        update.message.reply_text(f"API Response:\n`{resp}`", parse_mode="Markdown")
+    else:
+        update.message.reply_text("Error requesting number.")
 
-app.run()
+# Text messages (for recharge)
+def text_handler(update: Update, context: CallbackContext):
+    text = update.message.text.strip()
+    if text.isdigit():
+        amount = float(text)
+        context.bot.send_message(chat_id=ADMIN_ID,
+                                 text=f"Recharge request from @{update.effective_user.username or update.effective_user.id}: {amount}\nUse /addbalance <user_id> <amount> to approve.")
+        update.message.reply_text("Recharge request sent to admin for approval.")
+    else:
+        update.message.reply_text("Unknown text. Use menu or commands.")
+
+# /addbalance admin command
+def addbalance_cmd(update: Update, context: CallbackContext):
+    if update.effective_user.id != ADMIN_ID:
+        update.message.reply_text("You are not authorized to use this command.")
+        return
+    if len(context.args) < 2:
+        update.message.reply_text("Usage: /addbalance <user_id> <amount>")
+        return
+    try:
+        user_id = int(context.args[0])
+        amount = float(context.args[1])
+        # TODO: update MongoDB balance here
+        update.message.reply_text(f"Added {amount} to {user_id} (placeholder).")
+        context.bot.send_message(chat_id=user_id, text=f"Your account has been credited with {amount}.")
+    except Exception as e:
+        update.message.reply_text("Invalid arguments.")
+
+def main():
+    updater = Updater(BOT_TOKEN)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CallbackQueryHandler(button_handler))
+    dp.add_handler(CommandHandler("buy", buy_handler))
+    dp.add_handler(CommandHandler("addbalance", addbalance_cmd))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, text_handler))
+
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
