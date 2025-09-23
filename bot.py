@@ -1,32 +1,43 @@
 import os
 import logging
-import json
+import threading
 import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
-from utils import call_tempora_api, get_operators, get_prices, get_countries
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, CallbackContext
+from utils import call_tempora_api, get_prices
 
+# Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Config
 BOT_TOKEN = os.getenv("BOT_TOKEN", "BOT_TOKEN_HERE")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
-COUNTRY_CODES = {"USA": "1", "South Africa": "2"}
+SERVICE = "telegram"
 
-user_sessions = {}  # Temporary store for selected country/operator
+# Countries & Operators
+COUNTRY_MAP = {
+    "USA": {"id": "1", "operators": [1, 2, 3, 4]},
+    "South Africa": {"id": "2", "operators": [1, 2, 3, 4]}
+}
 
-# /start
-def start(update: Update, context):
+# Store active activations
+active_activations = {}
+
+# /start command
+def start(update: Update, context: CallbackContext):
+    user = update.effective_user
+    text = f"Hello {user.first_name}!\nWelcome to TemporaSMS Bot\nUse the menu below."
     keyboard = [
         [InlineKeyboardButton("Check Balance", callback_data="check_balance")],
         [InlineKeyboardButton("Buy Number", callback_data="buy_number")],
         [InlineKeyboardButton("Request Recharge", callback_data="request_recharge")]
     ]
-    update.message.reply_text("Welcome to TemporaSMS Bot!", reply_markup=InlineKeyboardMarkup(keyboard))
+    update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 # Button handler
-def button_handler(update: Update, context):
+def button_handler(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
     data = query.data
@@ -37,67 +48,74 @@ def button_handler(update: Update, context):
         query.edit_message_text(f"Tempora Balance:\n`{resp}`", parse_mode="Markdown")
 
     elif data == "request_recharge":
-        query.edit_message_text("Send the amount you want to request (e.g., 100).")
+        query.edit_message_text("Send the amount you want to request (e.g. 100).")
 
     elif data == "buy_number":
-        # Show countries
-        keyboard = []
-        for country in COUNTRY_CODES:
-            keyboard.append([InlineKeyboardButton(country, callback_data=f"country_{country}")])
-        query.edit_message_text("Select country:", reply_markup=InlineKeyboardMarkup(keyboard))
+        keyboard = [[InlineKeyboardButton(name, callback_data=f"country_{name}")] for name in COUNTRY_MAP.keys()]
+        query.edit_message_text("Select Country:", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("country_"):
-        country_name = data.split("_",1)[1]
-        user_sessions[user_id] = {"country": COUNTRY_CODES[country_name]}
-        operators = get_operators()
-        if not operators:
-            query.edit_message_text("Failed to get operators.")
-            return
-        keyboard = []
-        for op_name, op_id in operators.items():
-            keyboard.append([InlineKeyboardButton(f"{op_name}", callback_data=f"operator_{op_id}")])
-        query.edit_message_text(f"Select operator for {country_name}:", reply_markup=InlineKeyboardMarkup(keyboard))
+        country_name = data.split("_")[1]
+        country_info = COUNTRY_MAP[country_name]
+        country_id = country_info["id"]
 
-    elif data.startswith("operator_"):
-        op_id = data.split("_",1)[1]
-        user_sessions[user_id]["operator"] = op_id
-        country = user_sessions[user_id]["country"]
-        prices = get_prices(country, op_id)
-        if not prices:
-            query.edit_message_text("Failed to get prices.")
-            return
+        # Get prices for operators
         keyboard = []
-        # Flatten price dict
-        for service, service_prices in prices[country].items():
-            for price, price_id in service_prices.items():
-                keyboard.append([InlineKeyboardButton(f"{service} - {price}", callback_data=f"buy_{service}_{price}")])
-        query.edit_message_text("Select service & price:", reply_markup=InlineKeyboardMarkup(keyboard))
+        for op in country_info["operators"]:
+            price_info = get_prices(country_id, op)
+            price_text = "N/A"
+            if price_info and country_id in price_info:
+                for key in price_info[country_id]:
+                    price_text = list(price_info[country_id][key].keys())[0]
+                    break
+            keyboard.append([InlineKeyboardButton(f"Operator {op} 💰{price_text}", callback_data=f"buy_{country_name}_{op}")])
+        query.edit_message_text("Select Operator:", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("buy_"):
-        _, service, price = data.split("_")
-        session = user_sessions.get(user_id, {})
-        country = session.get("country")
-        operator = session.get("operator")
-        resp = call_tempora_api("getNumber", {"service": service, "country": country, "operator": operator})
-        if resp and "ACCESS_NUMBER" in resp:
-            parts = resp.split(":")
-            order_id = parts[1]
-            number = parts[2]
-            query.edit_message_text(f"Number bought: {number}\nWaiting for OTP (2 min max)...")
-            start_time = time.time()
-            while time.time() - start_time < 120:
-                otp_resp = call_tempora_api("getStatus", {"id": order_id})
-                if otp_resp and "STATUS_OK" in otp_resp:
-                    otp = otp_resp.split(":")[1]
-                    query.edit_message_text(f"OTP received: {otp}")
-                    return
-                time.sleep(5)
-            query.edit_message_text("Timeout reached. You can cancel this activation on website.")
-        else:
-            query.edit_message_text(f"Failed to get number: {resp}")
+        _, country_name, op_id = data.split("_")
+        op_id = int(op_id)
+        country_id = COUNTRY_MAP[country_name]["id"]
 
-# Text handler (recharge)
-def text_handler(update: Update, context):
+        # Buy number
+        resp = call_tempora_api("getNumber", {"service": SERVICE, "country": country_id, "operator": op_id})
+        if resp and "ACCESS_NUMBER" in resp:
+            # Save activation
+            order_id = resp.split(":")[1]
+            active_activations[user_id] = {"order_id": order_id, "otp_received": False}
+            keyboard = [[InlineKeyboardButton("Cancel", callback_data="cancel")]]
+            query.edit_message_text(f"Number bought!\n{resp}\nWaiting for OTP...", reply_markup=InlineKeyboardMarkup(keyboard))
+
+            # Start OTP check thread
+            threading.Thread(target=check_otp, args=(update, context, user_id), daemon=True).start()
+        else:
+            query.edit_message_text(f"Error buying number:\n{resp}")
+
+    elif data == "cancel":
+        if user_id in active_activations:
+            if active_activations[user_id]["otp_received"]:
+                query.edit_message_text("OTP already received. Cannot cancel.")
+            else:
+                order_id = active_activations[user_id]["order_id"]
+                cancel_resp = call_tempora_api("setStatus", {"status": 8, "id": order_id})
+                query.edit_message_text(f"Activation cancelled.\n{cancel_resp}")
+                del active_activations[user_id]
+        else:
+            query.edit_message_text("No active activation to cancel.")
+
+# Check OTP in background
+def check_otp(update, context, user_id):
+    order_id = active_activations[user_id]["order_id"]
+    for _ in range(120):  # check every 1 sec up to 2 min
+        resp = call_tempora_api("getStatus", {"id": order_id})
+        if resp and "STATUS_OK" in resp:
+            otp = resp.split(":")[1]
+            context.bot.send_message(chat_id=user_id, text=f"OTP Received: {otp}")
+            active_activations[user_id]["otp_received"] = True
+            return
+        time.sleep(1)
+
+# Text messages (recharge)
+def text_handler(update: Update, context: CallbackContext):
     text = update.message.text.strip()
     if text.isdigit():
         amount = float(text)
@@ -107,10 +125,10 @@ def text_handler(update: Update, context):
     else:
         update.message.reply_text("Unknown text. Use menu or commands.")
 
-# Admin addbalance
-def addbalance_cmd(update: Update, context):
+# /addbalance admin command
+def addbalance_cmd(update: Update, context: CallbackContext):
     if update.effective_user.id != ADMIN_ID:
-        update.message.reply_text("Unauthorized.")
+        update.message.reply_text("You are not authorized to use this command.")
         return
     if len(context.args) < 2:
         update.message.reply_text("Usage: /addbalance <user_id> <amount>")
@@ -120,7 +138,7 @@ def addbalance_cmd(update: Update, context):
         amount = float(context.args[1])
         update.message.reply_text(f"Added {amount} to {user_id} (placeholder).")
         context.bot.send_message(chat_id=user_id, text=f"Your account has been credited with {amount}.")
-    except Exception as e:
+    except Exception:
         update.message.reply_text("Invalid arguments.")
 
 def main():
