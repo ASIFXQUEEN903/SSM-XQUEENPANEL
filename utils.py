@@ -11,6 +11,7 @@ TEMPORA_BASE = "https://api.temporasms.com/stubs/handler_api.php"
 def call_tempora_api(action, extra_params=None):
     """
     Generic function to call Tempora API
+    Supports: getBalance, getNumber, getStatus, setStatus, getPrices, getOperators, getCountries
     """
     params = {"action": action, "api_key": TEMPORA_API_KEY}
     if extra_params:
@@ -26,12 +27,19 @@ def call_tempora_api(action, extra_params=None):
 def get_prices(country, operator):
     """
     Get prices for a specific country and operator
-    Returns dictionary of service -> price
+    Returns dict: service -> price
     """
     resp = call_tempora_api("getPrices", {"country": country, "operator": operator})
     if resp:
         try:
-            return json.loads(resp)
+            data = json.loads(resp)
+            # convert to simple {service: price} dict
+            result = {}
+            if country in data:
+                for service, val in data[country].items():
+                    price = list(val.keys())[0] if val else "N/A"
+                    result[service] = price
+            return result
         except Exception:
             logger.warning("Failed to parse getPrices response")
             return {}
