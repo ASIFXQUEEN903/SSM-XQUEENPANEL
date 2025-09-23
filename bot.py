@@ -17,9 +17,9 @@ ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 SERVICE = "telegram"
 
 # Countries & Operators
-COUNTRY_MAP = {
-    "USA": {"id": "1", "operators": [1, 2, 3, 4]},
-    "South Africa": {"id": "2", "operators": [1, 2, 3, 4]}
+COUNTRY_OPERATORS = {
+    "USA": {"id": "1", "operators": [1, 8, 9, 11]},
+    "South Africa": {"id": "2", "operators": [9, 11, 6]}
 }
 
 # Store active activations
@@ -51,12 +51,12 @@ def button_handler(update: Update, context: CallbackContext):
         query.edit_message_text("Send the amount you want to request (e.g. 100).")
 
     elif data == "buy_number":
-        keyboard = [[InlineKeyboardButton(name, callback_data=f"country_{name}")] for name in COUNTRY_MAP.keys()]
+        keyboard = [[InlineKeyboardButton(name, callback_data=f"country_{name}")] for name in COUNTRY_OPERATORS.keys()]
         query.edit_message_text("Select Country:", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("country_"):
         country_name = data.split("_")[1]
-        country_info = COUNTRY_MAP[country_name]
+        country_info = COUNTRY_OPERATORS[country_name]
         country_id = country_info["id"]
 
         # Get prices for operators
@@ -74,21 +74,23 @@ def button_handler(update: Update, context: CallbackContext):
     elif data.startswith("buy_"):
         _, country_name, op_id = data.split("_")
         op_id = int(op_id)
-        country_id = COUNTRY_MAP[country_name]["id"]
+        country_id = COUNTRY_OPERATORS[country_name]["id"]
 
         # Buy number
         resp = call_tempora_api("getNumber", {"service": SERVICE, "country": country_id, "operator": op_id})
-        if resp and "ACCESS_NUMBER" in resp:
-            # Save activation
-            order_id = resp.split(":")[1]
-            active_activations[user_id] = {"order_id": order_id, "otp_received": False}
-            keyboard = [[InlineKeyboardButton("Cancel", callback_data="cancel")]]
-            query.edit_message_text(f"Number bought!\n{resp}\nWaiting for OTP...", reply_markup=InlineKeyboardMarkup(keyboard))
-
-            # Start OTP check thread
-            threading.Thread(target=check_otp, args=(update, context, user_id), daemon=True).start()
+        if resp:
+            if "ACCESS_NUMBER" in resp:
+                order_id = resp.split(":")[1]
+                active_activations[user_id] = {"order_id": order_id, "otp_received": False}
+                keyboard = [[InlineKeyboardButton("Cancel", callback_data="cancel")]]
+                query.edit_message_text(f"Number bought!\n{resp}\nWaiting for OTP...", reply_markup=InlineKeyboardMarkup(keyboard))
+                threading.Thread(target=check_otp, args=(context.bot, user_id, order_id), daemon=True).start()
+            elif "NO_NUMBERS" in resp:
+                query.edit_message_text("Out of stock for this operator.")
+            else:
+                query.edit_message_text(f"Error buying number:\n{resp}")
         else:
-            query.edit_message_text(f"Error buying number:\n{resp}")
+            query.edit_message_text("Error contacting API.")
 
     elif data == "cancel":
         if user_id in active_activations:
@@ -103,13 +105,12 @@ def button_handler(update: Update, context: CallbackContext):
             query.edit_message_text("No active activation to cancel.")
 
 # Check OTP in background
-def check_otp(update, context, user_id):
-    order_id = active_activations[user_id]["order_id"]
+def check_otp(bot, user_id, order_id):
     for _ in range(120):  # check every 1 sec up to 2 min
         resp = call_tempora_api("getStatus", {"id": order_id})
         if resp and "STATUS_OK" in resp:
             otp = resp.split(":")[1]
-            context.bot.send_message(chat_id=user_id, text=f"OTP Received: {otp}")
+            bot.send_message(chat_id=user_id, text=f"OTP Received: {otp}")
             active_activations[user_id]["otp_received"] = True
             return
         time.sleep(1)
