@@ -1,33 +1,21 @@
 {
-  "name": "tempora-telegram-bot-starter",
-  "description": "Starter bot integrating TemporaSMS API (Tempora)",
-  "repository": "https://github.com/yourusername/tempora-telegram-bot-starter",
-  "logo": "https://www.example.com/logo.png",
-  "keywords": ["telegram","bot","tempora","sms","heroku"],
+  "name": "USA OTP Bot",
+  "description": "Telegram bot for USA Number + OTP Service",
+  "repository": "https://github.com/ASIFXQUEEN903/SSM-XQUEENPANEL",
+  "logo": "https://files.catbox.moe/8rpxez.jpg",
+  "keywords": ["python", "telegram", "heroku"],
   "env": {
     "BOT_TOKEN": {
-      "description": "Telegram Bot Token from BotFather",
-      "required": true
-    },
-    "TEMPORA_API_KEY": {
-      "description": "TemporaSMS API key",
-      "required": true
-    },
-    "MONGO_URL": {
-      "description": "MongoDB connection string",
-      "required": true
+      "description": "Your Telegram Bot Token",
+      "value": ""
     },
     "ADMIN_ID": {
-      "description": "Telegram numeric user id of admin",
-      "required": true
+      "description": "Your Telegram User ID",
+      "value": ""
+    },
+    "MONGO_URL": {
+      "description": "Your MongoDB connection string",
+      "value": ""
     }
-  },
-  "formation": {
-    "worker": {
-      "quantity": 1
-    }
-  },
-  "scripts": {
-    "postdeploy": "echo 'Deployment complete!'"
   }
 }
