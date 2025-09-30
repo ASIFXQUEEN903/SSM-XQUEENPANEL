@@ -65,16 +65,30 @@ def callback(call):
                        caption=f"Scan & Pay for {service}\nThen send your *12 digit* UTR number here.")
 
     # ---- ADMIN ACTION ----
-    elif data.startswith(("confirm","cancel","chat")):
-        action, target_id = data.split("|")
-        target_id = int(target_id)
+    elif data.startswith(("confirm","cancel","chat","endchat")):
+        parts = data.split("|")
+        action = parts[0]
+        target_id = int(parts[1])
 
+        # ---- START CHAT ----
         if action == "chat":
             active_chats[target_id] = True
-            bot.send_message(target_id, "💬 Owner is connected. Please enter your message.")
-            bot.send_message(ADMIN_ID, f"💬 Chat started with user {target_id}")
+            # Add END CHAT button
+            kb = InlineKeyboardMarkup()
+            kb.add(InlineKeyboardButton("🛑 End this Chat", callback_data=f"endchat|{target_id}"))
+            bot.send_message(target_id, "💬 Owner is connected with you.")
+            bot.send_message(ADMIN_ID, f"💬 Chat started with user {target_id}", reply_markup=kb)
             return
 
+        # ---- END CHAT ----
+        elif action == "endchat":
+            # Ask admin for final message
+            bot.send_message(ADMIN_ID, f"💬 Type the final message to send to user {target_id} before ending chat:")
+            # Register next step
+            bot.register_next_step_handler_by_chat_id(ADMIN_ID, lambda m: finish_chat(m, target_id))
+            return
+
+        # ---- CONFIRM/CANCEL PAYMENT ----
         if target_id not in pending_messages:
             bot.send_message(ADMIN_ID, "⚠️ No pending request from this user.")
             return
@@ -93,15 +107,39 @@ def callback(call):
         user_stage[target_id] = "done"
 
 # -----------------------
-# UTR HANDLER
+# FINISH CHAT FUNCTION
+# -----------------------
+def finish_chat(msg, target_id):
+    final_text = msg.text.strip()
+    if target_id in active_chats and active_chats[target_id]:
+        bot.send_message(target_id, final_text)
+        active_chats.pop(target_id, None)
+        bot.send_message(ADMIN_ID, f"💬 Chat with user {target_id} ended.")
+    else:
+        bot.send_message(ADMIN_ID, f"⚠️ No active chat with user {target_id}.")
+
+# -----------------------
+# MESSAGE HANDLER
 # -----------------------
 @bot.message_handler(func=lambda m: True)
-def utr_handler(msg):
+def chat_handler(msg):
     user_id = msg.from_user.id
-    stage = user_stage.get(user_id, "none")
     text = msg.text.strip()
 
+    # ---- ADMIN CHAT ----
+    if user_id == ADMIN_ID:
+        for uid, active in active_chats.items():
+            if active:
+                bot.send_message(uid, f"👑 Owner: {text}")
+        return
+
+    # ---- USER CHAT ----
+    if user_id in active_chats and active_chats[user_id]:
+        bot.send_message(ADMIN_ID, f"💬 User {user_id}: {text}")
+        return
+
     # ---- WAITING FOR UTR ----
+    stage = user_stage.get(user_id, "none")
     if stage == "waiting_utr":
         if not text.isdigit() or len(text) != 12:
             bot.send_message(user_id, "⚠️ Please enter a valid *12 digit* UTR number.")
@@ -114,20 +152,7 @@ def utr_handler(msg):
         bot.send_message(ADMIN_ID, f"💰 Payment Request\nUser ID: {user_id}\nUTR: {text}\nService: {pending_messages[user_id]['service']}", reply_markup=kb)
         return
 
-    # ---- ADMIN CHAT ----
-    if user_id == ADMIN_ID:
-        # Check if any active chat
-        for uid, active in active_chats.items():
-            if active:
-                bot.send_message(uid, f"👑 Owner: {text}")
-        return
-
-    # ---- USER CHAT ----
-    if user_id in active_chats and active_chats[user_id]:
-        bot.send_message(ADMIN_ID, f"💬 User {user_id}: {text}")
-        return
-
-    # ---- OTHER CASE ----
+    # ---- OTHER ----
     bot.send_message(user_id, "⚠️ Please follow the steps or use /start to begin.")
 
 # -----------------------
@@ -136,15 +161,15 @@ def utr_handler(msg):
 @bot.message_handler(commands=['complete'])
 def complete(msg):
     if msg.from_user.id != ADMIN_ID: return
-    to_remove = []
+    ended = []
     for uid, active in active_chats.items():
         if active:
             service = pending_messages.get(uid, {}).get('service', 'Service')
             bot.send_message(uid, f"✅ Your USA {service} process is complete. Thank you for using our bot.")
-            to_remove.append(uid)
-    for uid in to_remove:
+            ended.append(uid)
+    for uid in ended:
         active_chats.pop(uid, None)
-    bot.send_message(ADMIN_ID, f"💬 All active chats ended.")
+    bot.send_message(ADMIN_ID, "💬 All active chats ended.")
 
 # -----------------------
 # REFUND COMMAND
@@ -152,13 +177,13 @@ def complete(msg):
 @bot.message_handler(commands=['refund'])
 def refund(msg):
     if msg.from_user.id != ADMIN_ID: return
-    to_remove = []
+    ended = []
     for uid, active in active_chats.items():
         if active:
             bot.send_message(uid, "❌ Technical issue. Your money will be refunded. Please wait 3–5 seconds…")
             time.sleep(4)
-            to_remove.append(uid)
-    for uid in to_remove:
+            ended.append(uid)
+    for uid in ended:
         active_chats.pop(uid, None)
     bot.send_message(ADMIN_ID, "💬 Refund processed for all active chats.")
 
