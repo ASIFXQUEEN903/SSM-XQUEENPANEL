@@ -9,7 +9,6 @@ ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-
 # -----------------------
 # START COMMAND
 # -----------------------
@@ -23,12 +22,12 @@ def start(msg):
         reply_markup=kb
     )
 
-
 # -----------------------
-# CALLBACK HANDLERS
+# CALLBACK HANDLER (ALL)
 # -----------------------
 @bot.callback_query_handler(func=lambda call: True)
 def callback(call):
+    # ------------------- BUY MENU -------------------
     if call.data == "buy":
         kb = InlineKeyboardMarkup()
         kb.add(InlineKeyboardButton("Telegram – ₹50", callback_data="buy_telegram"))
@@ -40,16 +39,33 @@ def callback(call):
             reply_markup=kb
         )
 
+    # ------------------- SERVICE SELECT -------------------
     elif call.data.startswith("buy_"):
         service = "Telegram" if "telegram" in call.data else "WhatsApp"
         bot.send_photo(
             call.message.chat.id,
-            "https://files.catbox.moe/8rpxez.jpg",  # ✅ Your QR code
+            "https://files.catbox.moe/8rpxez.jpg",
             caption=f"Scan & Pay for {service}\nThen send your UTR Number here."
         )
         bot.register_next_step_handler(call.message, lambda m: utr_handler(m, service))
 
+    # ------------------- ADMIN ACTION -------------------
+    elif call.data.startswith(("confirm", "decline")):
+        parts = call.data.split("|")
+        action = parts[0]
+        user_id = int(parts[1])
 
+        if action == "confirm":
+            service = parts[2]
+            bot.send_message(user_id, f"✅ Payment successful!\nGenerating USA {service} number… Please wait a second.")
+            bot.send_message(call.message.chat.id, "✅ Confirmed and user notified.")
+        else:
+            bot.send_message(user_id, "❌ Payment not reserved / Wrong UTR. Contact customer care @NOBIT_USA_903")
+            bot.send_message(call.message.chat.id, "❌ Declined and user notified.")
+
+# -----------------------
+# UTR HANDLER
+# -----------------------
 def utr_handler(msg, service):
     utr = msg.text.strip()
     verify_msg = (
@@ -69,31 +85,11 @@ def utr_handler(msg, service):
         reply_markup=admin_keyboard(msg.chat.id, service, utr)
     )
 
-
 def admin_keyboard(uid, service, utr):
     kb = InlineKeyboardMarkup()
     kb.add(InlineKeyboardButton("✅ Confirm", callback_data=f"confirm|{uid}|{service}|{utr}"))
     kb.add(InlineKeyboardButton("❌ Decline", callback_data=f"decline|{uid}"))
     return kb
-
-
-# -----------------------
-# ADMIN DECISION
-# -----------------------
-@bot.callback_query_handler(func=lambda call: call.data.startswith(("confirm", "decline")))
-def admin_action(call):
-    parts = call.data.split("|")
-    action = parts[0]
-    user_id = int(parts[1])
-
-    if action == "confirm":
-        service = parts[2]
-        bot.send_message(user_id, f"✅ Payment Verified!\nGenerating USA Number for {service}… Please wait a second.")
-        bot.send_message(call.message.chat.id, "✅ Confirmed and user notified.")
-    else:
-        bot.send_message(user_id, "❌ Wrong UTR number or No Payment Record.\nPlease retry payment.")
-        bot.send_message(call.message.chat.id, "❌ Declined and user notified.")
-
 
 # -----------------------
 # RUN BOT
