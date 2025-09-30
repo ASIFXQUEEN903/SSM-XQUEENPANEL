@@ -23,7 +23,7 @@ users_col = db['users']
 # -----------------------
 # TEMP STORAGE
 # -----------------------
-pending_messages = {}  # {user_id: {'service': ..., 'utr_or_screenshot': ...}}
+pending_messages = {}  # {user_id: {'service': ..., 'utr': ..., 'screenshot': ...}}
 active_chats = {}      # {user_id: True/False → admin chat mode}
 
 # -----------------------
@@ -63,37 +63,38 @@ def callback(call):
         action = parts[0]
         target_id = int(parts[1])
 
-        # ---- START CHAT ----
-        if action == "chat":
-            active_chats[target_id] = True
-            kb = InlineKeyboardMarkup()
-            kb.add(InlineKeyboardButton("🛑 End this Chat", callback_data=f"endchat|{target_id}"))
-            bot.send_message(target_id, "💬 Owner is connected with you.")
-            bot.send_message(ADMIN_ID, f"💬 Chat started with user {target_id}", reply_markup=kb)
-            return
-
-        # ---- END CHAT ----
-        elif action == "endchat":
-            bot.send_message(ADMIN_ID, f"💬 Type the final message to send to user {target_id} before ending chat:")
-            bot.register_next_step_handler_by_chat_id(ADMIN_ID, lambda m: finish_chat(m, target_id))
-            return
-
-        # ---- CONFIRM/CANCEL PAYMENT ----
         if target_id not in pending_messages:
             bot.send_message(ADMIN_ID, "⚠️ No pending request from this user.")
             return
 
-        info = pending_messages.pop(target_id)
+        info = pending_messages[target_id]  # DO NOT POP YET
         service = info.get('service', 'Service')
 
+        # ---- CONFIRM PAYMENT ----
         if action == "confirm":
             bot.send_message(target_id, f"✅ Your payment is successful! Generating USA {service} number…")
             kb = InlineKeyboardMarkup()
             kb.add(InlineKeyboardButton("💬 Chat with User", callback_data=f"chat|{target_id}"))
             bot.send_message(ADMIN_ID, f"Payment confirmed for user {target_id}.", reply_markup=kb)
-        else:
+            # REMOVE PENDING AFTER CONFIRM
+            pending_messages.pop(target_id)
+
+        # ---- CANCEL PAYMENT ----
+        elif action == "cancel":
             bot.send_message(target_id, "❌ Your payment not received and your query is cancelled.")
             bot.send_message(ADMIN_ID, f"❌ Payment cancelled for user {target_id}.")
+            pending_messages.pop(target_id)
+
+        # ---- START / END CHAT ----
+        elif action == "chat":
+            active_chats[target_id] = True
+            kb = InlineKeyboardMarkup()
+            kb.add(InlineKeyboardButton("🛑 End this Chat", callback_data=f"endchat|{target_id}"))
+            bot.send_message(target_id, "💬 Owner is connected with you.")
+            bot.send_message(ADMIN_ID, f"💬 Chat started with user {target_id}", reply_markup=kb)
+        elif action == "endchat":
+            bot.send_message(ADMIN_ID, f"💬 Type the final message to send to user {target_id} before ending chat:")
+            bot.register_next_step_handler_by_chat_id(ADMIN_ID, lambda m: finish_chat(m, target_id))
 
 # -----------------------
 # FINISH CHAT FUNCTION
@@ -121,7 +122,7 @@ def chat_handler(msg):
                 bot.send_message(uid, f"👑 Owner: {msg.text}")
         return
 
-    # ---- WAITING FOR PAYMENT (UTR or Screenshot) ----
+    # ---- PAYMENT (UTR OR PHOTO) ----
     if user_id in pending_messages:
         data_to_send = None
         utr = None
@@ -131,7 +132,6 @@ def chat_handler(msg):
             utr = data_to_send
         elif msg.content_type == 'photo':
             data_to_send = msg.photo[-1].file_id
-            # Extract UTR from caption if present
             if msg.caption:
                 digits = ''.join(filter(str.isdigit, msg.caption))
                 if len(digits) == 12:
@@ -155,62 +155,13 @@ def chat_handler(msg):
                 bot.send_message(ADMIN_ID, admin_text, parse_mode="HTML", reply_markup=kb)
 
             bot.send_message(user_id, "🔄 Payment request sent to admin. Please wait for confirmation.")
-            pending_messages.pop(user_id)
+            # Abhi pop nahi karenge yaha, admin confirm/cancel pe pop hoga
             return
 
         bot.send_message(user_id, "⚠️ Please send a valid 12 digit UTR or payment screenshot.")
         return
 
     bot.send_message(user_id, "⚠️ Please follow the steps or use /start to begin.")
-
-# -----------------------
-# COMPLETE COMMAND
-# -----------------------
-@bot.message_handler(commands=['complete'])
-def complete(msg):
-    if msg.from_user.id != ADMIN_ID: return
-    ended = []
-    for uid, active in active_chats.items():
-        if active:
-            bot.send_message(uid, f"✅ Your USA process is complete. Thank you for using our bot.")
-            ended.append(uid)
-    for uid in ended:
-        active_chats.pop(uid, None)
-    bot.send_message(ADMIN_ID, "💬 All active chats ended.")
-
-# -----------------------
-# REFUND COMMAND
-# -----------------------
-@bot.message_handler(commands=['refund'])
-def refund(msg):
-    if msg.from_user.id != ADMIN_ID: return
-    ended = []
-    for uid, active in active_chats.items():
-        if active:
-            bot.send_message(uid, "❌ Technical issue. Your money will be refunded. Please wait 3–5 seconds…")
-            time.sleep(4)
-            ended.append(uid)
-    for uid in ended:
-        active_chats.pop(uid, None)
-    bot.send_message(ADMIN_ID, "💬 Refund processed for all active chats.")
-
-# -----------------------
-# BROADCAST
-# -----------------------
-@bot.message_handler(commands=['broadcast'])
-def broadcast(msg):
-    if msg.from_user.id != ADMIN_ID: return
-    text = msg.text.partition(' ')[2]
-    if not text:
-        bot.reply_to(msg, "⚠️ Usage: /broadcast Your message here")
-        return
-    sent = 0
-    for u in users_col.find():
-        try:
-            bot.send_message(u['user_id'], f"📢 Broadcast:\n{text}")
-            sent += 1
-        except: pass
-    bot.reply_to(msg, f"✅ Broadcast sent to {sent} users.")
 
 # -----------------------
 # RUN BOT
