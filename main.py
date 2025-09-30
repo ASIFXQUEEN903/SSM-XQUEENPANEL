@@ -2,24 +2,33 @@ import os
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pymongo import MongoClient
+import time
 
+# -----------------------
 # CONFIG
+# -----------------------
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 MONGO_URL = os.getenv("MONGO_URL")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# MongoDB setup
+# -----------------------
+# MONGO DB SETUP
+# -----------------------
 client = MongoClient(MONGO_URL)
 db = client['usa_bot']
 users_col = db['users']
 
-# Temp storage
-pending_messages = {}   # {user_id: {'service': ..., 'text': ...}}
-active_chats = {}       # {user_id: True/False}
+# -----------------------
+# TEMP STORAGE
+# -----------------------
+pending_messages = {}  # {user_id: {'service': ..., 'text': ...}}
+active_chats = {}      # {user_id: True/False} → admin chat mode
 
+# -----------------------
 # START COMMAND
+# -----------------------
 @bot.message_handler(commands=['start'])
 def start(msg):
     user_id = msg.from_user.id
@@ -29,7 +38,9 @@ def start(msg):
     kb.add(InlineKeyboardButton("💳 BUY", callback_data="buy"))
     bot.send_message(msg.chat.id, "👋 Welcome to USA Number Service\n👉 Telegram / WhatsApp OTP Buy Here", reply_markup=kb)
 
+# -----------------------
 # CALLBACK HANDLER
+# -----------------------
 @bot.callback_query_handler(func=lambda call: True)
 def callback(call):
     if call.data == "buy":
@@ -61,7 +72,6 @@ def callback(call):
 
         user_data = pending_messages.pop(user_id)
         service = user_data['service']
-        msg_text = user_data['text']
 
         if action == "confirm":
             bot.send_message(user_id, f"✅ Your payment is successful! Generating USA {service} number…")
@@ -72,7 +82,9 @@ def callback(call):
             bot.send_message(user_id, "❌ Your payment not received in our system and your query is cancelled. Please try again.")
             bot.send_message(ADMIN_ID, "❌ Cancelled and user notified.")
 
+# -----------------------
 # UTR HANDLER
+# -----------------------
 def utr_handler(msg, service):
     user_id = msg.from_user.id
     users_col.update_one({'user_id': user_id}, {'$set': {'user_id': user_id}}, upsert=True)
@@ -88,7 +100,9 @@ def admin_keyboard(user_id):
     kb.add(InlineKeyboardButton("❌ Cancel", callback_data=f"cancel|{user_id}"))
     return kb
 
+# -----------------------
 # ADMIN TO USER CHAT
+# -----------------------
 @bot.message_handler(func=lambda m: m.from_user.id == ADMIN_ID)
 def admin_chat(msg):
     for user_id, active in active_chats.items():
@@ -98,7 +112,9 @@ def admin_chat(msg):
             except:
                 pass
 
+# -----------------------
 # USER REPLY TO ADMIN
+# -----------------------
 @bot.message_handler(func=lambda m: True)
 def user_reply(msg):
     user_id = msg.from_user.id
@@ -108,7 +124,37 @@ def user_reply(msg):
         except:
             pass
 
+# -----------------------
+# COMPLETE COMMAND
+# -----------------------
+@bot.message_handler(commands=['complete'])
+def complete(msg):
+    if msg.from_user.id != ADMIN_ID:
+        return
+    for user_id, active in list(active_chats.items()):
+        if active:
+            service = pending_messages.get(user_id, {}).get('service', 'Service')
+            bot.send_message(user_id, f"✅ Your USA {service} process is complete. Thank you for using our bot. Powered by xqueen")
+            active_chats[user_id] = False
+            bot.send_message(ADMIN_ID, f"💬 Chat with user {user_id} ended.")
+
+# -----------------------
+# REFUND COMMAND
+# -----------------------
+@bot.message_handler(commands=['refund'])
+def refund(msg):
+    if msg.from_user.id != ADMIN_ID:
+        return
+    for user_id, active in list(active_chats.items()):
+        if active:
+            bot.send_message(user_id, "❌ Technical issue facing now. Your money will be refunded. Please wait 3–5 seconds…")
+            time.sleep(4)
+            active_chats[user_id] = False
+            bot.send_message(ADMIN_ID, f"💬 Refund completed. Chat with user {user_id} ended.")
+
+# -----------------------
 # BROADCAST
+# -----------------------
 @bot.message_handler(commands=['broadcast'])
 def broadcast(msg):
     if msg.from_user.id != ADMIN_ID:
@@ -127,5 +173,7 @@ def broadcast(msg):
             pass
     bot.reply_to(msg, f"✅ Broadcast sent to {count} users.")
 
+# -----------------------
 # RUN BOT
+# -----------------------
 bot.infinity_polling()
