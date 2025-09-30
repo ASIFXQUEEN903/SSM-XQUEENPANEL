@@ -1,6 +1,6 @@
 import os
 import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from pymongo import MongoClient
 import time
 
@@ -23,9 +23,9 @@ users_col = db['users']
 # -----------------------
 # TEMP STORAGE
 # -----------------------
-pending_messages = {}  # {user_id: {'service': ..., 'utr': ...}}
+pending_messages = {}  # {user_id: {'service': ..., 'utr': ..., 'screenshot': ...}}
 active_chats = {}      # {user_id: True/False → admin chat mode}
-user_stage = {}        # {user_id: 'start'|'service'|'waiting_utr'|'done'}
+user_stage = {}        # {user_id: 'start'|'service'|'waiting_utr'|'waiting_screenshot'|'done'}
 
 # -----------------------
 # START COMMAND
@@ -48,7 +48,6 @@ def callback(call):
     user_id = call.from_user.id
     data = call.data
 
-    # ---- BUY BUTTON ----
     if data == "buy":
         user_stage[user_id] = "service"
         kb = InlineKeyboardMarkup()
@@ -56,7 +55,6 @@ def callback(call):
         kb.add(InlineKeyboardButton("WhatsApp – ₹45", callback_data="buy_whatsapp"))
         bot.edit_message_text("Choose your service:", call.message.chat.id, call.message.message_id, reply_markup=kb)
 
-    # ---- SERVICE SELECT ----
     elif data.startswith("buy_") and user_stage.get(user_id) == "service":
         service = "Telegram" if "telegram" in data else "WhatsApp"
         user_stage[user_id] = "waiting_utr"
@@ -64,7 +62,6 @@ def callback(call):
         bot.send_photo(call.message.chat.id, "https://files.catbox.moe/8rpxez.jpg",
                        caption=f"Scan & Pay for {service}\nThen send your *12 digit* UTR number here.")
 
-    # ---- ADMIN ACTION ----
     elif data.startswith(("confirm","cancel","chat","endchat")):
         parts = data.split("|")
         action = parts[0]
@@ -75,7 +72,7 @@ def callback(call):
             active_chats[target_id] = True
             kb = InlineKeyboardMarkup()
             kb.add(InlineKeyboardButton("🛑 End this Chat", callback_data=f"endchat|{target_id}"))
-            bot.send_message(target_id, "💬 Bot is connected with you.")
+            bot.send_message(target_id, "💬 Owner is connected with you.")
             bot.send_message(ADMIN_ID, f"💬 Chat started with user {target_id}", reply_markup=kb)
             return
 
@@ -118,51 +115,59 @@ def finish_chat(msg, target_id):
 # -----------------------
 # MESSAGE HANDLER
 # -----------------------
-@bot.message_handler(func=lambda m: True)
+@bot.message_handler(func=lambda m: True, content_types=['text','photo'])
 def chat_handler(msg):
     user_id = msg.from_user.id
-    text = msg.text.strip()
 
     # ---- ADMIN CHAT ----
     if user_id == ADMIN_ID:
         for uid, active in active_chats.items():
             if active:
-                bot.send_message(uid, f"Bot: {text}")
+                if msg.content_type == 'text':
+                    bot.send_message(uid, f"👑 Owner: {msg.text}")
         return
 
-    # ---- USER CHAT ----
-    if user_id in active_chats and active_chats[user_id]:
-        bot.send_message(ADMIN_ID, f"💬 User {user_id}: {text}")
-        return
+    stage = user_stage.get(user_id, "none")
 
     # ---- WAITING FOR UTR ----
-    stage = user_stage.get(user_id, "none")
     if stage == "waiting_utr":
-        if not text.isdigit() or len(text) != 12:
+        if not msg.text or not msg.text.isdigit() or len(msg.text.strip()) != 12:
             bot.send_message(user_id, "⚠️ Please enter a valid *12 digit* UTR number.")
             return
-        pending_messages[user_id]['utr'] = text
-        bot.send_message(user_id, "🔄 Payment is verifying… Please wait 5–10 seconds.")
+        pending_messages[user_id]['utr'] = msg.text.strip()
+        user_stage[user_id] = "waiting_screenshot"
+        bot.send_message(user_id, "🔄 Now send your payment screenshot…")
+        return
 
-        # --- Admin message with clickable user name ---
+    # ---- WAITING FOR PAYMENT SCREENSHOT ----
+    if stage == "waiting_screenshot":
+        if msg.content_type != 'photo':
+            bot.send_message(user_id, "⚠️ Please send a valid photo screenshot of your payment.")
+            return
+        photo_id = msg.photo[-1].file_id
+        pending_messages[user_id]['screenshot'] = photo_id
+
+        # Send admin the payment request with screenshot
         user_name = msg.from_user.first_name
         uid = msg.from_user.id
         service = pending_messages[user_id]['service']
+        utr = pending_messages[user_id]['utr']
 
         admin_text = (
             f"💰 Payment Request\n"
             f"Name: <a href='tg://user?id={uid}'>{user_name}</a>\n"
             f"User ID: {uid}\n"
             f"Service: {service}\n"
-            f"UTR: {text}"
+            f"UTR: {utr}"
         )
-
         kb = InlineKeyboardMarkup()
         kb.add(
             InlineKeyboardButton("✅ Confirm", callback_data=f"confirm|{uid}"),
             InlineKeyboardButton("❌ Cancel", callback_data=f"cancel|{uid}")
         )
-        bot.send_message(ADMIN_ID, admin_text, parse_mode="HTML", reply_markup=kb)
+        bot.send_photo(ADMIN_ID, photo_id, caption=admin_text, parse_mode="HTML", reply_markup=kb)
+        user_stage[user_id] = "done"
+        bot.send_message(user_id, "🔄 Payment request sent to admin. Please wait for confirmation.")
         return
 
     # ---- OTHER ----
