@@ -24,7 +24,7 @@ users_col = db['users']
 # TEMP STORAGE
 # -----------------------
 pending_messages = {}  # {user_id: {'service': ..., 'utr': ...}}
-active_chats = {}      # {user_id: True/False} → admin chat mode
+active_chats = {}      # {user_id: True/False → admin chat mode}
 user_stage = {}        # {user_id: 'start'|'service'|'waiting_utr'|'done'}
 
 # -----------------------
@@ -73,18 +73,15 @@ def callback(call):
         # ---- START CHAT ----
         if action == "chat":
             active_chats[target_id] = True
-            # Add END CHAT button
             kb = InlineKeyboardMarkup()
             kb.add(InlineKeyboardButton("🛑 End this Chat", callback_data=f"endchat|{target_id}"))
-            bot.send_message(target_id, "💬 Owner is connected with you.")
+            bot.send_message(target_id, "💬 Bot is connected with you.")
             bot.send_message(ADMIN_ID, f"💬 Chat started with user {target_id}", reply_markup=kb)
             return
 
         # ---- END CHAT ----
         elif action == "endchat":
-            # Ask admin for final message
             bot.send_message(ADMIN_ID, f"💬 Type the final message to send to user {target_id} before ending chat:")
-            # Register next step
             bot.register_next_step_handler_by_chat_id(ADMIN_ID, lambda m: finish_chat(m, target_id))
             return
 
@@ -130,7 +127,7 @@ def chat_handler(msg):
     if user_id == ADMIN_ID:
         for uid, active in active_chats.items():
             if active:
-                bot.send_message(uid, f"👑 Owner: {text}")
+                bot.send_message(uid, f"Bot: {text}")
         return
 
     # ---- USER CHAT ----
@@ -146,10 +143,26 @@ def chat_handler(msg):
             return
         pending_messages[user_id]['utr'] = text
         bot.send_message(user_id, "🔄 Payment is verifying… Please wait 5–10 seconds.")
+
+        # --- Admin message with clickable user name ---
+        user_name = msg.from_user.first_name
+        uid = msg.from_user.id
+        service = pending_messages[user_id]['service']
+
+        admin_text = (
+            f"💰 Payment Request\n"
+            f"Name: <a href='tg://user?id={uid}'>{user_name}</a>\n"
+            f"User ID: {uid}\n"
+            f"Service: {service}\n"
+            f"UTR: {text}"
+        )
+
         kb = InlineKeyboardMarkup()
-        kb.add(InlineKeyboardButton("✅ Confirm", callback_data=f"confirm|{user_id}"))
-        kb.add(InlineKeyboardButton("❌ Cancel", callback_data=f"cancel|{user_id}"))
-        bot.send_message(ADMIN_ID, f"💰 Payment Request\nUser ID: {user_id}\nUTR: {text}\nService: {pending_messages[user_id]['service']}", reply_markup=kb)
+        kb.add(
+            InlineKeyboardButton("✅ Confirm", callback_data=f"confirm|{uid}"),
+            InlineKeyboardButton("❌ Cancel", callback_data=f"cancel|{uid}")
+        )
+        bot.send_message(ADMIN_ID, admin_text, parse_mode="HTML", reply_markup=kb)
         return
 
     # ---- OTHER ----
