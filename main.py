@@ -75,7 +75,7 @@ def callback(call):
             active_chats[target_id] = True
             kb = InlineKeyboardMarkup()
             kb.add(InlineKeyboardButton("🛑 End this Chat", callback_data=f"endchat|{target_id}"))
-            bot.send_message(target_id, "💬 Owner is connected with you.")
+            bot.send_message(target_id, "💬 Bot is connected with you.")
             bot.send_message(ADMIN_ID, f"💬 Chat started with user {target_id}", reply_markup=kb)
             return
 
@@ -94,7 +94,7 @@ def callback(call):
         service = info.get('service', 'Service')
 
         if action == "confirm":
-            bot.send_message(target_id, f"✅ Your payment is successful! Generating USA {service} number…")
+            bot.send_message(target_id, f"✅ Your payment is successful! Generating USA {service} number...…")
             kb = InlineKeyboardMarkup()
             kb.add(InlineKeyboardButton("💬 Chat with User", callback_data=f"chat|{target_id}"))
             bot.send_message(ADMIN_ID, f"Payment confirmed for user {target_id}.", reply_markup=kb)
@@ -126,7 +126,7 @@ def chat_handler(msg):
     if user_id == ADMIN_ID:
         for uid, active in active_chats.items():
             if active:
-                bot.send_message(uid, f"👑 Owner: {msg.text if msg.content_type=='text' else '📸 Screenshot sent'}")
+                bot.send_message(uid, f"🤖Bot: {msg.text if msg.content_type=='text' else '📸 Screenshot sent'}")
         return
 
     # ---- USER CHAT ----
@@ -159,7 +159,7 @@ def chat_handler(msg):
         bot.send_message(user_id, "⚠️ Only text (UTR) or photo (screenshot) allowed.")
         return
 
-    bot.send_message(user_id, "🔄 Payment request sent to admin. Please wait 5–10 seconds…")
+    bot.send_message(user_id, "🔄 Payment request is verifying by our records. Please wait 5–10 seconds…")
 
     # ---- SEND ADMIN ----
     admin_text = (
