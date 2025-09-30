@@ -16,7 +16,7 @@ db = client["usa_bot"]
 users_col = db["users"]
 
 # -------- TEMP DATA --------
-user_stage = {}        # {uid: "start"|"service"|"waiting_utr"|"done"}
+user_stage = {}        # {uid: "start"|"service"|"waiting_utr"|"done"|"done_restart"}
 user_service = {}      # {uid: "Telegram"/"WhatsApp"}
 pending_messages = {}  # {uid: {'service':..., 'utr':...}}
 chat_sessions = {}     # {admin_id: target_uid}
@@ -29,7 +29,8 @@ def start(m):
     user_stage[uid] = "start"
     kb = InlineKeyboardMarkup()
     kb.add(InlineKeyboardButton("💳 BUY", callback_data="buy"))
-    bot.send_message(m.chat.id,
+    bot.send_message(
+        m.chat.id,
         "👋 Welcome to USA Number Service\n👉 Telegram / WhatsApp OTP Buy Here",
         reply_markup=kb
     )
@@ -76,18 +77,24 @@ def callback(c):
         service = info['service']
 
         if action == "confirm":
-            bot.send_message(target_id,
-                f"✅ Your payment is successful! Generating USA {service} number…")
+            bot.send_message(
+                target_id,
+                f"✅ Your payment is successful! Generating USA {service} number…"
+            )
             kb = InlineKeyboardMarkup()
             kb.add(InlineKeyboardButton("💬 Chat with User", callback_data=f"chat|{target_id}"))
-            bot.send_message(ADMIN_ID,
+            bot.send_message(
+                ADMIN_ID,
                 f"Payment confirmed for user {target_id}.",
-                reply_markup=kb)
+                reply_markup=kb
+            )
         else:
-            bot.send_message(target_id,
-                "❌ Your payment not received and your query is cancelled. Please try again.")
+            bot.send_message(
+                target_id,
+                "❌ Your payment not received and your query is cancelled. Please try again."
+            )
             bot.send_message(ADMIN_ID, f"❌ Payment cancelled for user {target_id}.")
-        user_stage[target_id] = "done"
+        user_stage[target_id] = "done_restart"   # mark done & require /start again
 
 # -------- MESSAGE HANDLER --------
 @bot.message_handler(func=lambda m: True, content_types=['text'])
@@ -107,7 +114,7 @@ def handler(m):
 
     stage = user_stage.get(uid, "none")
 
-    # ----- WAITING FOR UTR -----
+    # ----- Waiting UTR -----
     if stage == "waiting_utr":
         if re.fullmatch(r"\d{12}", text):
             user_stage[uid] = "done"
@@ -128,6 +135,11 @@ def handler(m):
             bot.send_message(uid, "⚠️ Please enter a valid *12 digit* UTR number.")
         return
 
+    # ----- Session ended → force /start -----
+    if stage == "done_restart":
+        bot.send_message(uid, "🔒 Your previous session is closed.\n➡️ Please use /start to begin a new order.")
+        return
+
     # ----- Anything else -----
     if stage in ["start","service"]:
         bot.send_message(uid, "⚠️ Please follow the steps. Click BUY and select service first.")
@@ -144,7 +156,8 @@ def complete(m):
     target = chat_sessions.pop(ADMIN_ID)
     service = user_service.get(target, "Service")
     bot.send_message(target,
-        f"✅ Your USA {service} process is complete. Thank you for using our bot.")
+        f"✅ Your USA {service} process is complete. Thank you for using our bot.\n➡️ Use /start to create a new order.")
+    user_stage[target] = "done_restart"
     bot.send_message(ADMIN_ID, f"💬 Chat with user {target} ended.")
 
 @bot.message_handler(commands=['refund'])
@@ -155,7 +168,8 @@ def refund(m):
         return
     target = chat_sessions.pop(ADMIN_ID)
     bot.send_message(target,
-        "❌ Technical issue. Your money will be refunded shortly.")
+        "❌ Technical issue. Your money will be refunded shortly.\n➡️ Use /start to create a new order.")
+    user_stage[target] = "done_restart"
     time.sleep(3)
     bot.send_message(ADMIN_ID, f"💬 Refund processed for user {target}.")
 
