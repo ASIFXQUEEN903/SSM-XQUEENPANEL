@@ -159,7 +159,7 @@ def chat_handler(msg):
         bot.send_message(user_id, "⚠️ Only text (UTR) or photo (screenshot) allowed.")
         return
 
-    bot.send_message(user_id, "🔄 Payment request is verifying by our records. Please wait 5–10 seconds…")
+    bot.send_message(user_id, "🔄 Payment request is verifying by our records. Please wait 5–10 seconds… don't re-start until your number is delevred...")
 
     # ---- SEND ADMIN ----
     admin_text = (
@@ -199,21 +199,6 @@ def complete(msg):
         active_chats.pop(uid, None)
     bot.send_message(ADMIN_ID, "💬 All active chats ended.")
 
-# -----------------------
-# REFUND COMMAND
-# -----------------------
-@bot.message_handler(commands=['refund'])
-def refund(msg):
-    if msg.from_user.id != ADMIN_ID: return
-    ended = []
-    for uid, active in active_chats.items():
-        if active:
-            bot.send_message(uid, "❌ Technical issue. Your money will be refunded. Please wait 3–5 seconds…")
-            time.sleep(4)
-            ended.append(uid)
-    for uid in ended:
-        active_chats.pop(uid, None)
-    bot.send_message(ADMIN_ID, "💬 Refund processed for all active chats.")
 
 # -----------------------
 # BROADCAST
