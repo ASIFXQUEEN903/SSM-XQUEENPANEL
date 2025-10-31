@@ -122,9 +122,16 @@ def start(msg):
         "- 24/7 Support 👨‍🔧\n"
         "- Instant Payment Approvals 🧾\n"
         "</blockquote>\n"
+        "<blockquote expandable>\n"
+        "🚀 <b>How to use Bot :</b>\n"
+        "1️⃣ Recharge\n"
+        "2️⃣ Select Country\n"
+        "3️⃣ Buy Account\n"
+        "4️⃣ Get Number & Login through Telegram / Telegram X / Whatsapp\n"
+        "5️⃣ Receive OTP & You’re Done ✅\n"
+        "</blockquote>\n"
         "🚀 <b>Enjoy Fast Account Buying Experience!</b>"
     )
-
     try:
         bot.send_photo(
             msg.chat.id,
