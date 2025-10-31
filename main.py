@@ -179,11 +179,11 @@ def callback(call):
             return
 
         if data == "how_to_use":
-            bot.send_message(user_id, "ℹ️ Use the buttons to Buy / Recharge. Contact support if needed.")
+            bot.send_message(user_id, "📘 How to use:\n\n1️⃣ Recharge\n2️⃣ Buy Account\n3️⃣ Wait for Otp ✅")
             return
 
         if data == "support":
-            bot.send_message(user_id, "🛠️ Support: Please describe your problem. Admin will contact you shortly.")
+            bot.send_message(user_id, "🛠️ Support:Contact @NOBITA_USA_903 ")
             # optionally forward to admin or create ticket
             bot.send_message(ADMIN_ID, f"🆘 Support request from <a href='tg://user?id={user_id}'>{user_id}</a>", parse_mode="HTML")
             return
