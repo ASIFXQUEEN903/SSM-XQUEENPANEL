@@ -279,7 +279,7 @@ def callback(call):
 
             # Notify user
             bot.answer_callback_query(call.id, f"{service} order placed")
-            bot.send_message(user_id, f"✅ Payment of {format_currency(price)} deducted from your wallet.\n🔧 Your {service} number is now being generated. Please wait...\n\nIf admin needs to contact you, they will start a chat.", parse_mode="HTML")
+            bot.send_message(user_id, f"✅ Payment of {format_currency(price)} deducted from your wallet.\n🔧 Your {service} number is now being generated... Please wait...\n\nIf bot needs to contact you, they will start a chat.", parse_mode="HTML")
 
             # Notify admin with chat button
             kb = InlineKeyboardMarkup()
