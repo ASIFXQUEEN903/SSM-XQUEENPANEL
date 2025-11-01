@@ -191,6 +191,7 @@ def callback(call):
           # ---------- Buy flow entry (choose country/service) ----------
         if data == "buy":
         # Step 1: Ask country (only USA for now)
+        
         kb = InlineKeyboardMarkup()
         kb.add(InlineKeyboardButton("🇺🇸 USA", callback_data="choose_usa"))
         kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
