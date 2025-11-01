@@ -188,9 +188,8 @@ def callback(call):
             bot.send_message(ADMIN_ID, f"🆘 Support request from <a href='tg://user?id={user_id}'>{user_id}</a>", parse_mode="HTML")
             return
 
-        # ---------- Buy flow entry (choose country/service) ----------
+        # ---------- Buy flow entry (choose country/service) ----------    
 if data == "buy":
-    
     kb = InlineKeyboardMarkup()
     kb.add(InlineKeyboardButton("🇺🇸 USA", callback_data="choose_usa"))
     kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
@@ -207,8 +206,8 @@ if data == "buy":
 elif data == "choose_usa":
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(
-        InlineKeyboardButton(" Telegram — ₹50", callback_data="buy_telegram"),
-        InlineKeyboardButton(" WhatsApp — ₹45", callback_data="buy_whatsapp")
+        InlineKeyboardButton("🇺🇸 Telegram — ₹50", callback_data="buy_telegram"),
+        InlineKeyboardButton("🇺🇸 WhatsApp — ₹45", callback_data="buy_whatsapp")
     )
     kb.add(InlineKeyboardButton("⬅️ Back", callback_data="buy"))
     user_stage[user_id] = "choose_usa"
@@ -219,7 +218,6 @@ elif data == "choose_usa":
         reply_markup=kb
     )
     return
-
 # ---------- Back to Main Menu ----------
 elif data == "back_to_menu":
     kb = InlineKeyboardMarkup(row_width=2)
