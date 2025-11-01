@@ -187,9 +187,10 @@ def callback(call):
             # optionally forward to admin or create ticket
             bot.send_message(ADMIN_ID, f"🆘 Support request from <a href='tg://user?id={user_id}'>{user_id}</a>", parse_mode="HTML")
             return
+
         # ---------- Buy flow entry (choose country/service) ----------
-       if data == "buy":
-           kb = InlineKeyboardMarkup()
+if data == "buy":
+    kb = InlineKeyboardMarkup()
     kb.add(InlineKeyboardButton("🇺🇸 USA", callback_data="choose_usa"))
     kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
     user_stage[user_id] = "select_country"
@@ -202,11 +203,11 @@ def callback(call):
     return
 
 # ---------- Choose USA ----------
-    elif data == "choose_usa":
-         kb = InlineKeyboardMarkup(row_width=2)
+elif data == "choose_usa":
+    kb = InlineKeyboardMarkup(row_width=2)
     kb.add(
-        InlineKeyboardButton("🇺🇸 Telegram — ₹50", callback_data="buy_telegram"),
-        InlineKeyboardButton("🇺🇸 WhatsApp — ₹45", callback_data="buy_whatsapp")
+        InlineKeyboardButton(" Telegram — ₹50", callback_data="buy_telegram"),
+        InlineKeyboardButton(" WhatsApp — ₹45", callback_data="buy_whatsapp")
     )
     kb.add(InlineKeyboardButton("⬅️ Back", callback_data="buy"))
     user_stage[user_id] = "choose_usa"
@@ -233,6 +234,7 @@ elif data == "back_to_menu":
         InlineKeyboardButton("📦 Your Info", callback_data="info"),
         InlineKeyboardButton("🆘 How to Use?", callback_data="how_to_use")
     )
+
     if user_id == ADMIN_ID:
         kb.add(
             InlineKeyboardButton("📢 Broadcast", callback_data="broadcast_menu"),
@@ -247,32 +249,6 @@ elif data == "back_to_menu":
         reply_markup=kb
     )
     return
-
-        if data == "back_to_menu":
-            # same as /start but simpler
-            start_msg = telebot.types.Message  # dummy to reuse start (we'll call start by building a fake object is complex)
-            # simpler: re-send the start menu manually
-            kb = InlineKeyboardMarkup(row_width=2)
-            kb.add(
-                InlineKeyboardButton("💰 Balance", callback_data="balance"),
-                InlineKeyboardButton("🛒 Buy Account", callback_data="buy")
-            )
-            kb.add(
-                InlineKeyboardButton("💳 Recharge", callback_data="recharge"),
-                InlineKeyboardButton("🛠️ Support", callback_data="support")
-            )
-            kb.add(
-                InlineKeyboardButton("📦 Your Info", callback_data="info"),
-                InlineKeyboardButton("🆘 How to Use?", callback_data="how_to_use")
-            )
-            if user_id == ADMIN_ID:
-                kb.add(
-                    InlineKeyboardButton("📢 Broadcast", callback_data="broadcast_menu"),
-                    InlineKeyboardButton("💸 Refund", callback_data="refund_start")
-                )
-            bot.send_message(user_id, "🔙 Back to menu", reply_markup=kb)
-            user_stage[user_id] = "start"
-            return
 
         # ---------- Buy Telegram / WhatsApp finalization ----------
         if data in ("buy_telegram", "buy_whatsapp"):
