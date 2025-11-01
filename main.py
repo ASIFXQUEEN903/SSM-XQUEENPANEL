@@ -199,7 +199,7 @@ def callback(call):
         return
 
         if data == "choose_usa":
-        kb = InlineKeyboardMarkup(row_width=2)
+            kb = InlineKeyboardMarkup(row_width=2)
         kb.add(
             InlineKeyboardButton(" Telegram — ₹50", callback_data="buy_telegram"),
             InlineKeyboardButton(" WhatsApp — ₹45", callback_data="buy_whatsapp")
