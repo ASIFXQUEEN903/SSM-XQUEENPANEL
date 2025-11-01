@@ -115,7 +115,7 @@ def start(msg):
         )
 
     caption = (
-        "🥂 <b>Welcome To Otp Bot By Queen</b> 🥂\n"
+        "🥂 <b>Welcome To Otp Bot By Xqueen</b> 🥂\n"
         "<blockquote expandable>\n"
         "- Automatic OTPs 📍\n"
         "- Easy to Use 🥂🥂\n"
@@ -190,32 +190,32 @@ def callback(call):
           # ---------- Buy flow entry (choose country/service) ----------
         if data == "buy":
             kb = InlineKeyboardMarkup()
-    kb.add(InlineKeyboardButton("🇺🇸 USA", callback_data="choose_usa"))
-    kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
-    user_stage[user_id] = "select_country"
-    bot.edit_message_text(
-        chat_id=user_id,
-        message_id=call.message.message_id,
-        text="🌎 Select your country:",
-        reply_markup=kb
-    )
-    return
+            kb.add(InlineKeyboardButton("🇺🇸 USA", callback_data="choose_usa"))
+            kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
+            user_stage[user_id] = "select_country"
+            bot.edit_message_text(
+                chat_id=user_id,
+                message_id=call.message.message_id,
+                text="🌎 Select your country:",
+                reply_markup=kb
+            )
+            return
 
-        elif data == "choose_usa":
-    kb = InlineKeyboardMarkup(row_width=2)
-    kb.add(
-        InlineKeyboardButton(" Telegram — ₹50", callback_data="buy_telegram"),
-        InlineKeyboardButton(" WhatsApp — ₹45", callback_data="buy_whatsapp")
-    )
-    kb.add(InlineKeyboardButton("⬅️ Back", callback_data="buy"))
-    user_stage[user_id] = "choose_usa"
-    bot.edit_message_text(
-        chat_id=user_id,
-        message_id=call.message.message_id,
-        text="🇺🇸 Choose service to buy:",
-        reply_markup=kb
-    )
-    return  
+        if data == "choose_usa":
+            kb = InlineKeyboardMarkup(row_width=2)
+            kb.add(
+                InlineKeyboardButton(" Telegram — ₹50", callback_data="buy_telegram"),
+                InlineKeyboardButton(" WhatsApp — ₹45", callback_data="buy_whatsapp")
+            )
+            kb.add(InlineKeyboardButton("⬅️ Back", callback_data="buy"))
+            user_stage[user_id] = "choose_usa"
+            bot.edit_message_text(
+                chat_id=user_id,
+                message_id=call.message.message_id,
+                text="🇺🇸 Choose service to buy:",
+                reply_markup=kb
+            )
+            return  
           
 
         if data == "back_to_menu":
@@ -293,7 +293,7 @@ def callback(call):
         # ---------- Recharge entry ----------
         if data == "recharge":
             user_stage[user_id] = "enter_amount"
-            bot.send_message(user_id, "💳 Enter amount to add to wallet (e.g., 50 or 100):")
+            bot.send_message(user_id, "💳 Enter amount to add to wallet (minimum 1 & maximum 1000000):")
             return
 
         # ---------- Admin: start refund flow ----------
@@ -326,7 +326,7 @@ def callback(call):
                 bot.send_message(ADMIN_ID, f"✅ Recharge approved and {format_currency(amount)} added to user {user_target}.")
             else:
                 recharges_col.update_one({"req_id": req_id}, {"$set": {"status": "cancelled", "processed_at": datetime.utcnow(), "processed_by": ADMIN_ID}})
-                bot.send_message(user_target, f"❌ Your recharge request of {format_currency(amount)} was cancelled by admin.")
+                bot.send_message(user_target, f"❌ Your recharge of {format_currency(amount)} was not received .")
                 bot.send_message(ADMIN_ID, f"❌ Recharge cancelled for user {user_target}.")
             return
 
@@ -341,7 +341,7 @@ def callback(call):
             kb = InlineKeyboardMarkup()
             kb.add(InlineKeyboardButton("🛑 End this Chat", callback_data=f"endchat|{target_id}"))
             try:
-                bot.send_message(target_id, "💬 Admin connected with you.")
+                bot.send_message(target_id, "💬 Bot connected with you.")
             except Exception:
                 bot.send_message(ADMIN_ID, "⚠️ Could not start chat (user may have blocked bot).")
                 return
@@ -572,7 +572,7 @@ def chat_handler(msg):
         recharges_col.insert_one(recharge_doc)
 
         # notify user
-        bot.send_message(user_id, "🔄 Your recharge request has been sent for verification. Please wait for admin approval.", parse_mode="HTML")
+        bot.send_message(user_id, "🔄 Your recharge request has been sent for verification. Please wait for  approval.", parse_mode="HTML")
 
         # notify admin with Approve/Cancel buttons
         kb = InlineKeyboardMarkup()
