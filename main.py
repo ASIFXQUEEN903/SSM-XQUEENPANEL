@@ -189,25 +189,24 @@ def callback(call):
             return
             
           # ---------- Buy flow entry (choose country/service) ----------
-        
         if data == "buy":
             kb = InlineKeyboardMarkup()
-        kb.add(InlineKeyboardButton("🇺🇸 USA", callback_data="choose_usa"))
-        kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
-        user_stage[user_id] = "select_country"
-        bot.send_message(user_id, "🌎 Select your country:", reply_markup=kb)
-        return
+            kb.add(InlineKeyboardButton("🇺🇸 USA", callback_data="choose_usa"))
+            kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
+            user_stage[user_id] = "select_country"
+            bot.send_message(user_id, "🌎 Select your country:", reply_markup=kb)
+            return
 
         if data == "choose_usa":
             kb = InlineKeyboardMarkup(row_width=2)
-        kb.add(
-            InlineKeyboardButton(" Telegram — ₹50", callback_data="buy_telegram"),
-            InlineKeyboardButton(" WhatsApp — ₹45", callback_data="buy_whatsapp")
-        )
-        kb.add(InlineKeyboardButton("⬅️ Back", callback_data="buy"))
-        user_stage[user_id] = "choose_usa"
-        bot.send_message(user_id, "🇺🇸 Choose service to buy:", reply_markup=kb)
-        return
+            kb.add(
+                InlineKeyboardButton(" Telegram — ₹50", callback_data="buy_telegram"),
+                InlineKeyboardButton(" WhatsApp — ₹45", callback_data="buy_whatsapp")
+            )
+            kb.add(InlineKeyboardButton("⬅️ Back", callback_data="buy"))
+            user_stage[user_id] = "choose_usa"
+            bot.send_message(user_id, "🇺🇸 Choose service to buy:", reply_markup=kb)
+            return
 
         if data == "back_to_menu":
             # same as /start but simpler
