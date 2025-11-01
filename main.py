@@ -190,6 +190,7 @@ def callback(call):
 
         # ---------- Buy flow entry (choose country/service) ----------
 if data == "buy":
+    
     kb = InlineKeyboardMarkup()
     kb.add(InlineKeyboardButton("🇺🇸 USA", callback_data="choose_usa"))
     kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
