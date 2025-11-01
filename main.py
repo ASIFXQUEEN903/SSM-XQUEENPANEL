@@ -189,16 +189,16 @@ def callback(call):
             return
 
         # ---------- Buy flow entry (choose country/service) ----------    
-if data == "buy":
-    kb = InlineKeyboardMarkup()
-    kb.add(InlineKeyboardButton("🇺🇸 USA", callback_data="choose_usa"))
-    kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
-    user_stage[user_id] = "select_country"
-    bot.edit_message_text(
-        chat_id=user_id,
-        message_id=call.message.message_id,
-        text="🌎 Select your country:",
-        reply_markup=kb
+       if data == "buy":
+          kb = InlineKeyboardMarkup()
+          kb.add(InlineKeyboardButton("🇺🇸 USA", callback_data="choose_usa"))
+          kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
+          user_stage[user_id] = "select_country"
+         bot.edit_message_text(
+            chat_id=user_id,
+            message_id=call.message.message_id,
+            text="🌎 Select your country:",
+          reply_markup=kb
     )
     return
 
