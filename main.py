@@ -187,14 +187,18 @@ def callback(call):
             # optionally forward to admin or create ticket
             bot.send_message(ADMIN_ID, f"🆘 Support request from <a href='tg://user?id={user_id}'>{user_id}</a>", parse_mode="HTML")
             return
-            
           # ---------- Buy flow entry (choose country/service) ----------
         if data == "buy":
             kb = InlineKeyboardMarkup()
             kb.add(InlineKeyboardButton("🇺🇸 USA", callback_data="choose_usa"))
             kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
             user_stage[user_id] = "select_country"
-            bot.send_message(user_id, "🌎 Select your country:", reply_markup=kb)
+            bot.edit_message_text(
+                chat_id=user_id,
+                message_id=call.message.message_id,
+                text="🌎 Select your country:",
+                reply_markup=kb
+            )
             return
 
         if data == "choose_usa":
@@ -205,8 +209,14 @@ def callback(call):
             )
             kb.add(InlineKeyboardButton("⬅️ Back", callback_data="buy"))
             user_stage[user_id] = "choose_usa"
-            bot.send_message(user_id, "🇺🇸 Choose service to buy:", reply_markup=kb)
-            return
+            bot.edit_message_text(
+                chat_id=user_id,
+                message_id=call.message.message_id,
+                text="🇺🇸 Choose service to buy:",
+                reply_markup=kb
+            )
+            return  
+          
 
         if data == "back_to_menu":
             # same as /start but simpler
