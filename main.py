@@ -206,8 +206,8 @@ if data == "buy":
 elif data == "choose_usa":
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(
-        InlineKeyboardButton("🇺🇸 Telegram — ₹50", callback_data="buy_telegram"),
-        InlineKeyboardButton("🇺🇸 WhatsApp — ₹45", callback_data="buy_whatsapp")
+        InlineKeyboardButton(" Telegram — ₹50", callback_data="buy_telegram"),
+        InlineKeyboardButton(" WhatsApp — ₹45", callback_data="buy_whatsapp")
     )
     kb.add(InlineKeyboardButton("⬅️ Back", callback_data="buy"))
     user_stage[user_id] = "choose_usa"
